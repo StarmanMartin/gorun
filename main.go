@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
+
 	"github.com/starmanmartin/simple-fs"
 )
 
@@ -17,26 +19,26 @@ const (
 	test    = "test"
 )
 
-var lastPart *regexp.Regexp
-
 var runTypes = []string{install, test}
 
-var isTest bool
-var isBenchTest bool
-var isExecute bool
-var currentPath string
-var outputString string
+var (
+ lastPart *regexp.Regexp
+ isTest, isBenchTest, isExecute, isWatch bool
+ newRoot, packageName, currentPath, outputString string  
+ restArgs []string
+)
 
 func init() {
 	lastPart, _ = regexp.Compile(`[^\\/]*$`)
-		
+
 	flag.BoolVar(&isTest, "t", false, "Run as Test")
 	flag.BoolVar(&isBenchTest, "b", false, "Bench tests (only if test)")
 	flag.BoolVar(&isExecute, "e", false, "Execute (only if not test)")
+	flag.BoolVar(&isWatch, "w", false, "Execute (only if not test)")
 	flag.StringVar(&outputString, "p", "", "Make Package")
 }
 
-func exeCmd(cmdCommand []string) error {
+func exeCmd(cmdCommand []string) *exec.Cmd {
 	parts := cmdCommand
 	head := parts[0]
 	parts = parts[1:len(parts)]
@@ -45,7 +47,7 @@ func exeCmd(cmdCommand []string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	return cmd
 }
 
 func buildCommand(packageName string) []string {
@@ -90,35 +92,40 @@ func handelPathArgs() (string, string, []string, error) {
 	return absPath, args[1], args[1:], nil
 }
 
-func copyPackage(dir, packageName, funcName string) (isPackage bool, err error){
+func copyPackage(dir, packageName, funcName string) (isPackage bool, err error) {
 	if len(outputString) == 0 {
 		return
 	}
-	
-	isPackage = true	
+
+	isPackage = true
 	dest := dir + "/bin/" + funcName + "/"
-	src := dir + "/src/" + packageName + "/" 
-	
+	src := dir + "/src/" + packageName + "/"
+
 	output := strings.Split(outputString, " ")
-	
+
 	for _, dirName := range output {
-		err = fs.CopyFolder(src + dirName, dest + dirName)
+		err = fs.CopyFolder(src+dirName, dest+dirName)
 		if err != nil {
 			return
 		}
 	}
-	
+
 	return
 }
 
 func main() {
 	flag.Parse()
-	newRoot, packageName, restArgs, err := handelPathArgs()
+    var err error
+	newRoot, packageName, restArgs, err = handelPathArgs()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+    
+    runBuild()
+}
 
+func runBuild() {
 	buildCommandList := buildCommand(packageName)
 	buildCommandList = append(buildCommandList, packageName)
 	currentPath := os.Getenv("GOPATH")
@@ -126,7 +133,8 @@ func main() {
 	newPath := []string{newRoot, ";", currentPath}
 
 	os.Setenv("GOPATH", strings.Join(newPath, ""))
-	if err = exeCmd(buildCommandList); err != nil {
+	cmd := exeCmd(buildCommandList)
+	if err := cmd.Start(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -136,17 +144,66 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 		return
-	} else if(isPackage) {
-		fs.SyncFile(newRoot + "/bin/" + funcName + ".exe", newRoot + "/bin/" + funcName + "/" + funcName + ".exe")
+	} else if isPackage {
+		fs.SyncFile(newRoot+"/bin/"+funcName+".exe", newRoot+"/bin/"+funcName+"/"+funcName+".exe")
 		funcName = funcName + "/" + funcName
 	}
 
 	if isExecute && !isTest {
+		log.Printf("Running %s\n", funcName)
 		executionPath := newRoot + "/bin/" + funcName + ".exe"
 		exArgs := []string{executionPath}
 		exArgs = append(exArgs, restArgs...)
-		if err = exeCmd(exArgs); err != nil {
-			log.Fatal(err)
+		if isWatch {
+			watch(exArgs, newRoot+"/src/"+packageName)
+		} else {
+			cmd := exeCmd(exArgs)
+			if err := cmd.Start(); err != nil {
+				log.Fatal(err)
+			}
+		}
+	} else {
+		log.Printf("Builded %s\n", funcName)
+	}
+}
+
+func watch(args []string, rootPath string) {
+	done := make(chan error, 1)
+
+	cmd := exeCmd(args)
+
+	go func() {
+		cmd.Start()
+	}()
+
+	restart := make(chan bool, 1)
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		lastChaek := time.Now()
+		for _ = range ticker.C {
+			isUpdated, _ := fs.CheckIfFolderUpdated(rootPath, lastChaek)
+			if isUpdated {
+				restart <- true
+				ticker.Stop()
+			}
+		}
+	}()
+
+	select {
+	case <-restart:
+		if err := cmd.Process.Kill(); err != nil {
+			log.Fatal("failed to kill: ", err)
+		}
+        
+		log.Println("process restarted")
+        runBuild();
+	case err := <-done:
+		if err != nil {
+			log.Fatal("process done with error = %v", err)
+		} else {
+			log.Print("process done gracefully without error")
 		}
 	}
+
 }
