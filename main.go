@@ -38,16 +38,31 @@ func init() {
 	flag.StringVar(&outputString, "p", "", "Make Package")
 }
 
-func exeCmd(cmdCommand []string) *exec.Cmd {
+func startCmd(cmdCommand []string) (*exec.Cmd, error) {
 	parts := cmdCommand
 	head := parts[0]
 	parts = parts[1:len(parts)]
 
 	cmd := exec.Command(head, parts...)
+   
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+    
+	if err := cmd.Start(); err != nil {
+		return cmd, err;
+	}
 
-	return cmd
+	return cmd, nil
+}
+
+func exeCmd(cmdCommand []string) (*exec.Cmd, error) {
+	var cmd *exec.Cmd
+    
+	if cmd, err := startCmd(cmdCommand); err != nil {
+		return cmd, err;
+	}
+
+	return cmd, nil//cmd.Wait()
 }
 
 func buildCommand(packageName string) []string {
@@ -133,8 +148,8 @@ func runBuild() {
 	newPath := []string{newRoot, ";", currentPath}
 
 	os.Setenv("GOPATH", strings.Join(newPath, ""))
-	cmd := exeCmd(buildCommandList)
-	if err := cmd.Start(); err != nil {
+	_, err := exeCmd(buildCommandList)
+	if err != nil {
 		log.Fatal(err)
 	}
 
@@ -157,10 +172,11 @@ func runBuild() {
 		if isWatch {
 			watch(exArgs, newRoot+"/src/"+packageName)
 		} else {
-			cmd := exeCmd(exArgs)
-			if err := cmd.Start(); err != nil {
-				log.Fatal(err)
-			}
+			_, err := exeCmd(exArgs)
+            if err != nil {
+                log.Fatal(err)
+                return 
+            }
 		}
 	} else {
 		log.Printf("Builded %s\n", funcName)
@@ -170,10 +186,16 @@ func runBuild() {
 func watch(args []string, rootPath string) {
 	done := make(chan error, 1)
 
-	cmd := exeCmd(args)
+	cmd, err := startCmd(args)
+    if err != nil {
+        log.Fatal(err)
+    }
 
 	go func() {
-		cmd.Start()
+		err := cmd.Wait()
+        if err != nil {
+            done <- err
+        }
 	}()
 
 	restart := make(chan bool, 1)
