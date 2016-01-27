@@ -38,7 +38,7 @@ func init() {
 	flag.StringVar(&outputString, "p", "", "Make Package")
 }
 
-func startCmd(cmdCommand []string) (*exec.Cmd, error) {
+func getCmd(cmdCommand []string) (*exec.Cmd) {
 	parts := cmdCommand
 	head := parts[0]
 	parts = parts[1:len(parts)]
@@ -47,22 +47,18 @@ func startCmd(cmdCommand []string) (*exec.Cmd, error) {
    
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
+	return cmd
+}
+
+func exeCmd(cmdCommand []string) (*exec.Cmd, error) {
+	cmd := getCmd(cmdCommand)
     
 	if err := cmd.Start(); err != nil {
 		return cmd, err;
 	}
 
 	return cmd, nil
-}
-
-func exeCmd(cmdCommand []string) (*exec.Cmd, error) {
-	var cmd *exec.Cmd
-    
-	if cmd, err := startCmd(cmdCommand); err != nil {
-		return cmd, err;
-	}
-
-	return cmd, nil//cmd.Wait()
 }
 
 func buildCommand(packageName string) []string {
@@ -186,13 +182,10 @@ func runBuild() {
 func watch(args []string, rootPath string) {
 	done := make(chan error, 1)
 
-	cmd, err := startCmd(args)
-    if err != nil {
-        log.Fatal(err)
-    }
+	cmd := getCmd(args)
 
 	go func() {
-		err := cmd.Wait()
+		err := cmd.Run()
         if err != nil {
             done <- err
         }
