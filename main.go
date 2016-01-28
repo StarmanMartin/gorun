@@ -54,7 +54,7 @@ func getCmd(cmdCommand []string) *exec.Cmd {
 func exeCmd(cmdCommand []string) (*exec.Cmd, error) {
 	cmd := getCmd(cmdCommand)
 
-	if err := cmd.Start(); err != nil {
+	if err := cmd.Run(); err != nil {
 		return cmd, err
 	}
 
@@ -146,7 +146,7 @@ func main() {
 func runBuild() {
 	buildCommandList := buildCommand(packageName)
 	buildCommandList = append(buildCommandList, packageName)
-	_, err := exeCmd(buildCommandList)
+    _, err := exeCmd(buildCommandList)
 	if err != nil {
 		log.Fatal(err)
 	}
