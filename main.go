@@ -103,13 +103,13 @@ func handelPathArgs() (string, string, []string, error) {
 	return absPath, args[1], args[1:], nil
 }
 
-func copyPackage(dir, packageName, funcName string) (isPackage bool, err error) {
+func copyPackage(dir, packageName string) (isPackage bool, err error) {
 	if len(outputString) == 0 {
 		return
 	}
 
 	isPackage = true
-	dest := dir + "/bin/" + funcName + "/"
+	dest := dir + "/bin/"
 	src := dir + "/src/" + packageName + "/"
 
 	output := strings.Split(outputString, " ")
@@ -152,16 +152,13 @@ func runBuild() {
 	}
 
 	funcName := lastPart.FindString(packageName)
-	isPackage, err := copyPackage(newRoot, packageName, funcName)
+	_, err = copyPackage(newRoot, packageName)
 
 	if err != nil {
 		log.Fatal(err)
 		return
-	} else if isPackage {
-		fs.SyncFile(newRoot+"/bin/"+funcName+".exe", newRoot+"/bin/"+funcName+"/"+funcName+".exe")
-		funcName = funcName + "/" + funcName
-	}
-
+	} 
+	
 	if isExecute && !isTest {
 		log.Printf("Running %s\n", funcName)
 		executionPath := newRoot + "/bin/" + funcName + ".exe"
