@@ -146,9 +146,14 @@ func main() {
 func runBuild() {
 	buildCommandList := buildCommand(packageName)
 	buildCommandList = append(buildCommandList, packageName)
-    _, err := exeCmd(buildCommandList)
+	_, err := exeCmd(buildCommandList)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		if isWatch {
+			watch(nil, newRoot, false)
+		}
+        
+		return
 	}
 
 	funcName := lastPart.FindString(packageName)
@@ -157,15 +162,15 @@ func runBuild() {
 	if err != nil {
 		log.Fatal(err)
 		return
-	} 
-	
+	}
+
 	if isExecute && !isTest {
 		log.Printf("Running %s\n", funcName)
 		executionPath := newRoot + "/bin/" + funcName + ".exe"
 		exArgs := []string{executionPath}
 		exArgs = append(exArgs, restArgs...)
 		if isWatch {
-			watch(exArgs, newRoot+"/src/"+packageName)
+			watch(exArgs, newRoot+"/src/"+packageName, true)
 		} else {
 			_, err := exeCmd(exArgs)
 			if err != nil {
@@ -178,20 +183,29 @@ func runBuild() {
 	}
 }
 
-func watch(args []string, rootPath string) {
-	done := make(chan error, 1)
+func watch(args []string, rootPath string, run bool) {
 	doneWithoutErr := make(chan bool, 1)
+	done := make(chan bool, 1)
+    var cmd *exec.Cmd
+    
+	if run {
+		cmd = getCmd(args)
+		go func() {
+			err := cmd.Run()
+			select {
+			case <-done:
+				log.Println("Prozess killed")
+			default:
+				if err != nil {
+					log.Println("process done with error = %v", err)
+				}
 
-	cmd := getCmd(args)
-
-	go func() {
-		err := cmd.Run()
-		if err != nil {
-			done <- err
-		} else {
-			doneWithoutErr <- true
-		}
-	}()
+				doneWithoutErr <- true
+			}
+		}()
+	} else {
+        doneWithoutErr <- true
+    }
 
 	restart := make(chan bool, 1)
 
@@ -207,28 +221,20 @@ func watch(args []string, rootPath string) {
 		}
 	}()
 
+	done <- <-restart
 	select {
-	case <-restart:
-		select {
-		case <-doneWithoutErr:
-			log.Println("process restarted")
-			runBuild()
-		default:
-			if err := cmd.Process.Kill(); err != nil {
-				log.Fatal("failed to kill: ", err)
-			}
-
-			log.Println("process restarted")
-			runBuild()
-
+	case <-doneWithoutErr:
+		log.Println("process restarted")
+		runBuild()
+	default:
+		log.Println("Killing prozess...")
+		if err := cmd.Process.Kill(); err != nil {
+			log.Fatal("failed to kill: ", err)
 		}
 
-	case err := <-done:
-		if err != nil {
-			log.Fatal("process done with error = %v", err)
-		} else {
-			log.Print("process done gracefully without error")
-		}
+		log.Println("process restarted")
+		runBuild()
+
 	}
 
 }
