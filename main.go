@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
 	"github.com/starmanmartin/simple-fs"
+    "runtime"
 )
 
 const (
@@ -134,10 +134,18 @@ func main() {
 	}
 	currentPath := os.Getenv("GOPATH")
 	defer func() {
-		log.Println("Done!!")
+		log.Printf("Done!! (%s)\n", runtime.GOOS)
 		os.Setenv("GOPATH", currentPath)
 	}()
-	newPath := []string{newRoot, ";", currentPath}
+    
+    var newPath []string
+    switch runtime.GOOS {
+    case "windows":
+        newPath = []string{newRoot, ";", currentPath}
+    default: 
+        newPath = []string{newRoot, ":", currentPath}
+    }
+	
 
 	os.Setenv("GOPATH", strings.Join(newPath, ""))
 	runBuild()
