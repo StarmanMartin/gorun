@@ -174,7 +174,11 @@ func runBuild() {
 
 	if isExecute && !isTest {
 		log.Printf("Running %s\n", funcName)
-		executionPath := newRoot + "/bin/" + funcName + ".exe"
+		executionPath := newRoot + "/bin/" + funcName
+        if runtime.GOOS == "windows" {
+            executionPath += ".exe"
+        }
+        
 		exArgs := []string{executionPath}
 		exArgs = append(exArgs, restArgs...)
 		if isWatch {
