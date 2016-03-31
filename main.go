@@ -17,6 +17,7 @@ import (
 const (
 	install = "install"
 	test    = "test"
+    coverCommand = "go tool cover -html=coverage.out -o=coverage.html"
 )
 
 var runTypes = []string{install, test}
@@ -26,6 +27,7 @@ var (
 	isTest, isBenchTest, isExecute, isWatch         bool
 	newRoot, packageName, currentPath, outputString string
 	restArgs                                        []string
+    isCoverage = false
 )
 
 func init() {
@@ -41,7 +43,7 @@ func init() {
 func getCmd(cmdCommand []string) *exec.Cmd {
 	parts := cmdCommand
 	head := parts[0]
-	parts = parts[1:len(parts)]
+	parts = parts[1:]
 
 	cmd := exec.Command(head, parts...)
 
@@ -70,7 +72,10 @@ func buildCommand(packageName string) []string {
 		buffer = append(buffer, "test")
 		if isBenchTest {
 			buffer = append(buffer, "-bench=.")
-		}
+		}else {
+            buffer = append(buffer, "-coverprofile=coverage.out")//, "-html=coverage.out")
+            isCoverage = true
+        }
 	} else {
 		buffer = append(buffer, "install")
 	}
@@ -190,7 +195,10 @@ func runBuild() {
 				return
 			}
 		}
-	} else {
+	} else if isCoverage {
+        exeCmd(strings.Split(coverCommand, " "))
+        log.Printf("Test %s\n", funcName)
+    } else {
 		log.Printf("Builded %s\n", funcName)
 	}
 }
