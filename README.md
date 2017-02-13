@@ -4,8 +4,8 @@ Builds and executes go packages
 
 ## What is gorun
 
-Helps you to run your go code. It automatically sets the GoPath to the current project.
-Gorun compiles the go code and copies all folders needed from the bin folder. It can run or test the code.
+Helps to run your go code. It automatically sets the GoPath to the current project.
+Gorun compiles the go code and copies all folders to a output folder. It also can run tests.
 
 ## Install gorun
 
@@ -13,18 +13,17 @@ Gorun compiles the go code and copies all folders needed from the bin folder. It
 go get github.com/starmanmaritn/gorun
 ```
 
-To run gorun it is necessary to add the */bin* folder in your *GoPath* to your *Path* environment variable
+To run gorun it is necessary to add the */bin* folder of your GoPath to your *Path* environment variable
 
 ## Simple build
 
-To build your code via gorun you need to navigate to the base dir of your project were your *src, bin and pkg* folders are.
-Now just enter following to your terminal:
+To build your code via gorun you need to navigate to the base path of your current project. There should be a *src*, a *bin* and a *pkg* folder located. Now just enter following to your terminal to build your Project:
 
 ```bash
 gorun [Path to variable]
 ```
 
-Example by the gorun project:
+Example for the gorun project:
 
 ```bash
 gorun github.com/starmanmaritn/gorun
@@ -32,7 +31,7 @@ gorun github.com/starmanmaritn/gorun
 
 ## Execute your code
 
-The same as before you just neet to add *-e* tag to the command
+The same as before, you just neet to add *-e* tag to the command
 
 ```bash
 gorun -e [Path to variable]
@@ -40,7 +39,7 @@ gorun -e [Path to variable]
 
 ### More options
 
- * `-w` this tag keeps gorun watching your code and rebuilds on any change
+ * `-w` this tag keeps gorun watching your code and rebuilds if it changes.
  * `-p [Folder list]` this tag copies all folders in the folder list from your *src* to your *bin*
 
 ## Run your tests
@@ -51,7 +50,7 @@ to run your tests you can add the *-t* tag to the command
 gorun -t [Path to variable]
 ```
 
-The only tag witch goes with the *-t* tag is the *-b* to run banchmark tests 
+The only other tag witch goes with the *-t* tag is the *-b* to run banchmark tests 
 
 ```bash
 gorun -t -b [Path to variable]
