@@ -16,7 +16,7 @@ go get github.com/starmanmaritn/gorun
 
 To run gorun it is necessary to add the */bin* folder of your GoPath to your *Path* environment variable
 
-## Simple_build
+# Simple_build
 
 To build your code via gorun you need to navigate to the base path of your current project. There should be a *src*, a *bin* and a *pkg* folder located. Now just enter following to your terminal to build your Project:
 
